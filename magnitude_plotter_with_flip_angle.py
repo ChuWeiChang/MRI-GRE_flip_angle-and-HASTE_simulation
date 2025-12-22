@@ -23,8 +23,8 @@ def parse_args():
     parser.add_argument(
         "--t1_2",
         type=float,
-        default=1300.0,
-        help="T1 in ms (default: 1300)",
+        default=900.0,
+        help="T1 in ms (default: 900)",
     )
     parser.add_argument(
         "--tr",
@@ -41,10 +41,11 @@ def parse_args():
 
     return parser.parse_args()
 
-def plot(config, tissue):
+def plot(config, tissue, name, t1):
     angles = config["flip_angles"]
     step = 20
-    fig, axes = plt.subplots(1, len(angles), figsize=(4 * len(angles),3), sharey=True)
+    fig, axes = plt.subplots(1, len(angles), figsize=(4 * len(angles),4), sharey=True)
+    fig.canvas.manager.set_window_title(name + f" T1 {t1}ms")
 
     idx_ticks = list(range(0, config["duration"], step))
     for i, angle in enumerate(angles):
@@ -83,8 +84,18 @@ def calc_magnetization(config, t1, angle):
         m0_pre = mz[-1]
     return time_all, longitudinal
 
-def contrast(config, angle) -> float:
-    pass
+def contrasts(config, angle):
+    tr = config["tr"]
+    te = t2 = 1 # TE and T2 are not relevant for this contrast calculation
+
+    signal = lambda t1, alpha: (
+        ((1 - np.exp(-tr / t1)) * np.sin(alpha))
+        / (1 - np.exp(-tr / t1) * np.cos(alpha))
+    ) * np.exp(-te / t2)
+
+    contrast = lambda i1, i2: (i1 - i2) / (i1 + i2)
+
+    return contrast(signal(config["t1_1"], angle), signal(config["t1_2"], angle))
 def main():
     args = parse_args()
     config = {
@@ -95,10 +106,7 @@ def main():
         "sample_num": args.sample_num,
         "flip_angles": [10, 30, 50, 70, 90],
     }
-    mag_plots = {
-        "tissue_1": {},
-        "tissue_2": {}
-    }
+
     tissue_t1 = {
         "tissue_1": config["t1_1"],
         "tissue_2": config["t1_2"],
@@ -113,12 +121,17 @@ def main():
             mags[tissue][angle] = {"time": time_all, "mz": mz}
 
     # plot each tissue (1×5 each)
-    for tissue in tissue_t1:
-        plot(config, mags[tissue])
+    for tissue, t1 in tissue_t1.items():
+        plot(config, mags[tissue], tissue, t1)
     plt.show()
-    # contrasts = {fa: 0.0 for fa in config["flip_angles"]}
-    # for angle in config["flip_angles"]:
-    #     contrasts[angle] = contrast(config, radians(angle))
 
+    contrast = 0
+    max_contrast = max_angle = 0
+    for angle in config["flip_angles"]:
+        contrast = contrasts(config, radians(angle))
+        if abs(contrast) > abs(max_contrast):
+            max_contrast = contrast
+            max_angle = angle
+    print(f"maximum contrast at {max_angle}°")
 if __name__ == '__main__':
     main()
