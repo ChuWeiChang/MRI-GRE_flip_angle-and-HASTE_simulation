@@ -41,22 +41,29 @@ def parse_args():
 
     return parser.parse_args()
 
-def plot(config, time_all, longitudinal, angle):
+def plot(config, tissue):
+    angles = config["flip_angles"]
     step = 20
+    fig, axes = plt.subplots(1, len(angles), figsize=(4 * len(angles),3), sharey=True)
+
     idx_ticks = list(range(0, config["duration"], step))
-    fig, ax = plt.subplots()
+    for i, angle in enumerate(angles):
+        ax = axes[i]
+        time_all = tissue[angle]["time"]
+        longitudinal = tissue[angle]["mz"]
 
-    ax.plot(time_all, longitudinal, label="M_z (Longitudinal)", color="blue")
+        ax.plot(time_all, longitudinal, label="M_z (Longitudinal)", color="blue") # tick positions in TIME units (pick the time at those TR indices)
+        ax.set_xticks([time_all[k * config["sample_num"]] for k in idx_ticks])
+        ax.set_xticklabels([str(k) for k in idx_ticks], fontsize=6)
+        ax.set_xlabel("RF")
 
-    ax.set_xticks([time_all[i * config["sample_num"]] for i in idx_ticks])  # positions in TIME units
-    ax.set_xticklabels([str(i) for i in idx_ticks])
-    ax.set_xlabel("RF")
-    ax.set_ylabel("Magnetization / M0")
-    ax.set_title(f"Magnetization with angle {degrees(angle)}")
-    ax.grid(True)
-    ax.legend()
+        ax.tick_params(axis="y", labelleft=True)
+        if i == 0:
+            ax.set_ylabel("Magnetization / M0")
 
-    return fig
+        ax.set_title(f"Angle {angle}°")
+        ax.grid(True)
+        ax.legend()
 
 def calc_magnetization(config, t1, angle):
     m0 = 1
@@ -74,7 +81,7 @@ def calc_magnetization(config, t1, angle):
         time_all.extend(list(time + (t+1) * config["tr"]))
         longitudinal.extend(mz)
         m0_pre = mz[-1]
-    return plot(config, time_all, longitudinal, angle)
+    return time_all, longitudinal
 
 def contrast(config, angle) -> float:
     pass
@@ -92,11 +99,22 @@ def main():
         "tissue_1": {},
         "tissue_2": {}
     }
-    for angle in config["flip_angles"]:
-        mag_plots["tissue_1"][angle] = calc_magnetization(config, config["t1_1"],radians(angle))
-        # mag_plots["tissue_2"][angle] = calc_magnetization(config, config["t1_2"],radians(angle))
+    tissue_t1 = {
+        "tissue_1": config["t1_1"],
+        "tissue_2": config["t1_2"],
+    }
 
+    mags = {tissue: {} for tissue in tissue_t1}
 
+    # compute and store data
+    for tissue, t1 in tissue_t1.items():
+        for angle in config["flip_angles"]:
+            time_all, mz = calc_magnetization(config, t1, radians(angle))
+            mags[tissue][angle] = {"time": time_all, "mz": mz}
+
+    # plot each tissue (1×5 each)
+    for tissue in tissue_t1:
+        plot(config, mags[tissue])
     plt.show()
     # contrasts = {fa: 0.0 for fa in config["flip_angles"]}
     # for angle in config["flip_angles"]:
