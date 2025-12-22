@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
-from math import cos, sin, radians
+from math import cos, sin, radians, degrees
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -28,8 +28,8 @@ def parse_args():
     )
     parser.add_argument(
         "--tr",
-        type=float,
-        default=90.0,
+        type=int,
+        default=90,
         help="TR in ms (default: 90)",
     )
     parser.add_argument(
@@ -41,19 +41,18 @@ def parse_args():
 
     return parser.parse_args()
 
-def plot(config, time_all, longitudinal):
-    x_ticks = [t * config["tr"] for t in range(0, config["duration"] + 2)]
-
+def plot(config, time_all, longitudinal, angle):
+    step = 20
+    idx_ticks = list(range(0, config["duration"], step))
     fig, ax = plt.subplots()
 
-    # plot returns a list of lines; grab the first one
     ax.plot(time_all, longitudinal, label="M_z (Longitudinal)", color="blue")
 
-    ax.set_xticks(x_ticks)
-    ax.set_xticklabels(['–TR', '0'] + [f'{i}TR' for i in range(1, len(x_ticks) - 1)])
-    ax.set_xlabel("Time")
+    ax.set_xticks([time_all[i * config["sample_num"]] for i in idx_ticks])  # positions in TIME units
+    ax.set_xticklabels([str(i) for i in idx_ticks])
+    ax.set_xlabel("RF")
     ax.set_ylabel("Magnetization / M0")
-    ax.set_title("Magnetization (T1 & T2)")
+    ax.set_title(f"Magnetization with angle {degrees(angle)}")
     ax.grid(True)
     ax.legend()
 
@@ -61,7 +60,8 @@ def plot(config, time_all, longitudinal):
 
 def calc_magnetization(config, t1, angle):
     m0 = 1
-    t1_r = lambda x: m0 * (1 - (1 - cos(angle)) * np.exp(-x / t1))
+    m0_pre = m0
+    t1_r = lambda x: m0 - (m0 - m0_pre * cos(angle)) * np.exp(-x / t1)
 
     # initial time samples for the first [-TR, 0] interval
     time_all = []
@@ -73,8 +73,8 @@ def calc_magnetization(config, t1, angle):
 
         time_all.extend(list(time + (t+1) * config["tr"]))
         longitudinal.extend(mz)
-        m0 = mz[-1]
-    return plot(config, time_all, longitudinal)
+        m0_pre = mz[-1]
+    return plot(config, time_all, longitudinal, angle)
 
 def contrast(config, angle) -> float:
     pass
@@ -94,11 +94,13 @@ def main():
     }
     for angle in config["flip_angles"]:
         mag_plots["tissue_1"][angle] = calc_magnetization(config, config["t1_1"],radians(angle))
-        mag_plots["tissue_2"][angle] = calc_magnetization(config, config["t1_2"],radians(angle))
+        # mag_plots["tissue_2"][angle] = calc_magnetization(config, config["t1_2"],radians(angle))
 
-    contrasts = {fa: 0.0 for fa in config["flip_angles"]}
-    for angle in config["flip_angles"]:
-        contrasts[angle] = contrast(config, radians(angle))
+
+    plt.show()
+    # contrasts = {fa: 0.0 for fa in config["flip_angles"]}
+    # for angle in config["flip_angles"]:
+    #     contrasts[angle] = contrast(config, radians(angle))
 
 if __name__ == '__main__':
     main()
