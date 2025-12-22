@@ -123,6 +123,7 @@ def main():
     # plot each tissue (1×5 each)
     for tissue, t1 in tissue_t1.items():
         plot(config, mags[tissue], tissue, t1)
+    plt.tight_layout()
     plt.show()
 
     contrast = 0

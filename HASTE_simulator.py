@@ -15,15 +15,20 @@ def main(config):
     axs[0].set_title("Original")
     axs[0].axis("off")
     for i, t2 in enumerate(config["t2"]):
-        k_modified = np.zeros_like(k)
+        k_modified = np.zeros_like(k, dtype=complex)
         t2_filter = lambda m, t: m * np.exp(-t / t2)
 
         time = config["te"]
         esp = config["esp"]
-        for phase_encode in range(round(k.shape[0] / 2)):
-            for freq_encode in range(k.shape[1]):
-                k_modified[phase_encode][freq_encode] = t2_filter(k[phase_encode][freq_encode], time)
+        offset = int(k.shape[0] / 2)
+        for phase_encode in range(offset):
+                k_modified[phase_encode + offset]= t2_filter(k[phase_encode + offset], time)
                 time += esp
+
+        bottom_half_data = k_modified[offset + 1:]
+        mirrored_data = np.flip(bottom_half_data, axis=0)
+        conjugate_data = np.conj(mirrored_data)
+        k_modified[1: offset] = conjugate_data
 
         img_mod_cplx = np.fft.ifft2(np.fft.ifftshift(k_modified))
         img_mod_mag = np.abs(img_mod_cplx)
