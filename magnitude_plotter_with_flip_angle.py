@@ -79,7 +79,7 @@ def calc_magnetization(config, t1, angle):
         time = np.linspace(0, config["tr"], config["sample_num"])
         mz = t1_r(time)
 
-        time_all.extend(list(time + (t+1) * config["tr"]))
+        time_all.extend(list(time + t * config["tr"]))
         longitudinal.extend(mz)
         m0_pre = mz[-1]
     return time_all, longitudinal
