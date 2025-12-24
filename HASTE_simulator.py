@@ -30,6 +30,9 @@ def main(config):
         conjugate_data = np.conj(mirrored_data)
         k_modified[1: offset] = conjugate_data
 
+        # Restore the Line y=0
+        # k_modified[0, :] = k[0, :]
+
         img_mod_cplx = np.fft.ifft2(np.fft.ifftshift(k_modified))
         img_mod_mag = np.abs(img_mod_cplx)
 
