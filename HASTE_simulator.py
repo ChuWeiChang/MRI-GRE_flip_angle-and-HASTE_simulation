@@ -26,12 +26,9 @@ def main(config):
                 time += esp
 
         bottom_half_data = k_modified[offset + 1:]
-        mirrored_data = np.flip(bottom_half_data, axis=0)
-        conjugate_data = np.conj(mirrored_data)
-        k_modified[1: offset] = conjugate_data
-
-        # Restore the Line y=0
-        # k_modified[0, :] = k[0, :]
+        flipped_data = np.flip(bottom_half_data, axis=(0, 1))
+        aligned_data = np.roll(flipped_data, 1, axis=1)
+        k_modified[1: offset] = np.conj(aligned_data)
 
         img_mod_cplx = np.fft.ifft2(np.fft.ifftshift(k_modified))
         img_mod_mag = np.abs(img_mod_cplx)
